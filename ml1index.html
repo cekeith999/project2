@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Joystick → Color Box</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body { font-family: system-ui, sans-serif; text-align: center; margin-top: 60px; }
+    .box {
+      width: 250px; height: 250px; margin: 0 auto;
+      border-radius: 20px; border: 2px solid #ccc;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 24px; transition: background-color 0.3s, transform 0.3s;
+    }
+  </style>
+</head>
+<body>
+  <h1>Joystick Color Demo</h1>
+  <div id="box" class="box">CENTER</div>
+  <p>Move your joystick left or right to change the color.</p>
+  <script>
+    const box = document.getElementById("box");
+    const es = new EventSource("/stream");
+
+    es.onmessage = (event) => {
+      const msg = event.data.trim().toUpperCase();
+      if (msg === "LEFT") {
+        box.style.backgroundColor = "#f6bd60";
+        box.style.transform = "translateX(-15px)";
+        box.textContent = "LEFT";
+      } else if (msg === "RIGHT") {
+        box.style.backgroundColor = "#84a59d";
+        box.style.transform = "translateX(15px)";
+        box.textContent = "RIGHT";
+      } else {
+        box.style.backgroundColor = "#f28482";
+        box.style.transform = "translateX(0)";
+        box.textContent = "CENTER";
+      }
+    };
+  </script>
+</body>
+</html>
