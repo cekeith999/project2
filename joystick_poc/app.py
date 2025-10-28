@@ -15,6 +15,12 @@ app = Flask(
 )
 
 
+@app.route('/healthz')
+def healthz():
+    return 'ok', 200
+
+
+
 # ---------------- Config ----------------
 WEB_PORT = 5050
 
