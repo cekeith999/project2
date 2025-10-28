@@ -2,6 +2,10 @@
 from flask import Flask, render_template, request, jsonify, redirect, url_for
 import os, time
 
+@app.route("/debug/radios")
+def debug_radios():
+    return render_template("debug_radios.html")
+
 # ---------------- Config ----------------
 WEB_PORT = 5050
 
