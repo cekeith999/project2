@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Player 1</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 16px; }
+    /* The .opt and .opt.sel styles define the button-like appearance */
+    .opt { padding: 8px 12px; margin: 6px 0; border: 1px solid #ccc; border-radius: 8px; display: inline-block; cursor: pointer; }
+    .opt.sel { border-color: #222; background: #eee; }
+    .row { margin-top: 8px; }
+    button { padding: 8px 12px; }
+    code { background: #f4f4f4; padding: 2px 6px; border-radius: 6px; }
+    
+    /* Removed old .q-list-item styles */
+  </style>
+</head>
+<body>
+  <h2>Player 1</h2>
+
+  <div id="q_select_view">
+    <h3>Pick a Question!</h3>
+    <div id="question_list" class="row">Loading question list...</div> <div style="margin-top: 15px;">
+      <button id="startBtn" disabled>Ready to Pick my Answer</button>
+    </div>
+  </div>
+  
+  <hr style="margin-top: 20px;" />
+
+  <div id="a_select_view" style="display:none;">
+    <h3>Choose Your Answer</h3>
+    <div id="current_q"></div>
+    <div id="options" class="row"></div>
+    <div class="row">
+      <button id="lockBtn">Lock It In</button>
+      <span id="status" style="margin-left:10px;"></span>
+    </div>
+  </div>
+
+  <hr />
+  
+  <div style="margin-top: 10px;">
+    <button onclick="window.location.href='/'">← Back to Home</button>
+    <button id="playAgainBtn" style="margin-left: 10px;">Play Another Round</button>
+  </div>
+
+  <hr />
+  <div>
+    <small>Latest event: <code id="latest">—</code></small>
+  </div>
+
+<script>
+  const $q_select_view = document.getElementById('q_select_view');
+  const $a_select_view = document.getElementById('a_select_view');
+  const $q_list = document.getElementById('question_list');
+  const $start_btn = document.getElementById('startBtn');
+  const $current_q = document.getElementById('current_q');
+  const $opts = document.getElementById('options');
+  const $status = document.getElementById('status');
+  const $lock = document.getElementById('lockBtn');
+  const $latest = document.getElementById('latest');
+  const $play_again_btn = document.getElementById('playAgainBtn');
+
+  let state = null;
+  let localQuestionChoice = null; // Store P1's locally chosen question index
+
+  // --- RENDERING ---
+  function render() {
+    if (!state) return;
+
+    // --- RENDER Question Selection View (Initial View) ---
+    $q_list.innerHTML = '';
+    state.question_bank.forEach((q, i) => {
+      // FIX: Use an <a> element with the same classes as the answer options
+      const a = document.createElement('a');
+      a.textContent = `${q.question}`;
+      
+      // FIX: Use 'opt' and 'sel' classes for selection style
+      a.className = 'opt' + (localQuestionChoice === i ? ' sel' : '');
+      
+      a.onclick = () => setLocalQuestionChoice(i);
+      $q_list.appendChild(a);
+      $q_list.appendChild(document.createElement('br')); // Keep each question on a new line
+    });
+
+    // Control visibility based on whether a question is chosen
+    const questionIsChosen = state.question_idx !== null;
+    
+    $q_select_view.style.display = questionIsChosen ? 'none' : 'block';
+    $a_select_view.style.display = questionIsChosen ? 'block' : 'none';
+    
+    $start_btn.disabled = localQuestionChoice === null;
+    $start_btn.onclick = setQuestionAndProceed;
+
+    // --- RENDER Answer Selection View (After Question Chosen) ---
+    if (questionIsChosen) {
+      $current_q.textContent = state.question;
+      $opts.innerHTML = '';
+      state.options.forEach((txt, i) => {
+        const a = document.createElement('a');
+        a.textContent = txt;
+        a.className = 'opt' + (state.p1_selected === i ? ' sel' : '');
+        a.onclick = () => selectAnswer(i);
+        $opts.appendChild(a);
+        $opts.appendChild(document.createElement('br'));
+      });
+      $status.textContent = state.locked ? 'Locked ✅' : (state.p1_selected != null ? `Selected: ${state.options[state.p1_selected]}` : 'No selection');
+      $lock.disabled = state.locked || state.p1_selected == null;
+    }
+  }
+
+  // --- ACTIONS ---
+  function setLocalQuestionChoice(idx) {
+    localQuestionChoice = idx;
+    render();
+  }
+
+  async function setQuestionAndProceed() {
+    if (localQuestionChoice === null) return;
+    await fetch('/api/p1/set_question', { 
+        method:'POST', 
+        headers:{'Content-Type':'application/json'}, 
+        body: JSON.stringify({ idx: localQuestionChoice }) 
+    });
+    // The server will update state.question_idx, so loadState() will handle the view change
+    await loadState(); 
+  }
+
+  async function selectAnswer(idx) {
+    await fetch('/api/p1/select', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ idx }) });
+    await loadState(); // Refresh to show the selection
+  }
+
+  async function lock() {
+    await fetch('/api/p1/lock', { method:'POST' });
+    await loadState(); // Refresh to show the lock status
+  }
+
+  $lock.onclick = lock;
+
+  async function playAgain() {
+      // Calls the /api/reset endpoint which now resets question_idx to None
+      await fetch('/api/reset', { method:'POST' });
+      // Clear the local choice, as the new question is not yet selected
+      localQuestionChoice = null; 
+      await loadState();
+  }
+
+  $play_again_btn.onclick = playAgain;
+
+  // --- STATE MANAGEMENT ---
+  async function loadState() {
+    const r = await fetch('/state');
+    state = await r.json();
+    
+    // Sync the local choice with the active question if one is set
+    if (state.question_idx !== null) {
+      localQuestionChoice = state.question_idx;
+    }
+
+    render();
+  }
+
+  // Event stream (SSE) for real-time updates (optional, keeping it for now)
+  const es = new EventSource('/events'); 
+  es.onmessage = (ev) => {
+    $latest.textContent = ev.data;
+    // ... (logic to parse and update state from event stream) ...
+  };
+
+  // Initial state fetch
+  loadState();
+</script>
+</body>
+</html>
