@@ -1,4 +1,3 @@
-﻿
-# api/index.py
+﻿# api/index.py
 # Vercel Python Functions entrypoint. Imports Flask app from joystick_poc/app.py
-from joystick_poc.app import app  # 'app' must be defined in joystick_poc/app.py
+from joystick_poc.app import app

@@ -6,6 +6,15 @@ import os, time
 def debug_radios():
     return render_template("debug_radios.html")
 
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+app = Flask(
+    __name__,
+    template_folder=os.path.join(BASE_DIR, "templates"),
+    static_folder=os.path.join(BASE_DIR, "static")
+)
+
+
 # ---------------- Config ----------------
 WEB_PORT = 5050
 
@@ -152,3 +161,6 @@ if __name__ == "__main__":
     print("TEMPLATES:", os.path.abspath(app.template_folder))
     print("STATIC   :", os.path.abspath(app.static_folder))
     app.run(debug=True, port=WEB_PORT)
+@app.route('/debug/radios')
+def debug_radios():
+    return render_template('debug_radios.html')
