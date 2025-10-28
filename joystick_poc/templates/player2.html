@@ -1,0 +1,87 @@
+<!doctype html>
+<html>
+  <body style="font-family: system-ui; margin:16px">
+    <h2>Player 2 — Guess Player 1’s answer</h2>
+
+    <div id="q">Loading question…</div>
+
+    <div id="options" style="margin-top:8px;"></div>
+
+    <div style="margin-top:10px;">
+      <button id="submitBtn" disabled>Submit Guess</button>
+      <span id="msg" style="margin-left:8px;"></span>
+    </div>
+
+    <div style="margin-top:12px;">
+      <small>
+        Status: <span id="status">…</span>
+      </small>
+    </div>
+
+    <hr style="margin-top: 15px;" />
+    
+    <div style="margin-top: 10px;">
+        <button onclick="window.location.href='/'">← Back to Home</button>
+    </div>
+
+    <script>
+      const $q = document.getElementById('q');
+      const $opts = document.getElementById('options');
+      const $btn = document.getElementById('submitBtn');
+      const $msg = document.getElementById('msg');
+      const $status = document.getElementById('status');
+
+      let state = null;
+      let localChoice = null;
+
+      function render(){
+        if(!state) return;
+        $q.textContent = state.question;
+        $opts.innerHTML = '';
+        state.options.forEach((txt, i) => {
+          const b = document.createElement('button');
+          b.textContent = txt + (localChoice===i ? '  ✓' : '');
+          b.style.marginRight = '6px';
+          b.onclick = () => { localChoice = i; render(); };
+          b.disabled = (state.locked === false); // disable until P1 locks? -> actually we enable select but only submit when locked.
+          $opts.appendChild(b);
+        });
+
+        $btn.disabled = (localChoice==null) || (state.locked===false);
+        $status.textContent = state.locked ? 'P1 locked — you may submit.' : 'Waiting for Player 1 to lock.';
+        if(state.result){
+          $msg.textContent = (state.result === 'correct') ? '✅ Correct!' : '❌ Wrong';
+          $btn.disabled = true;
+        } else {
+          $msg.textContent = '';
+        }
+      }
+
+      async function loadState(){
+        const r = await fetch('/state');
+        state = await r.json();
+        render();
+      }
+
+      async function submitGuess(){
+        if(localChoice==null) return;
+        const r = await fetch('/api/p2/guess', {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({idx: localChoice})
+        });
+        const data = await r.json();
+        if(!data.ok){
+          $msg.textContent = 'Error: ' + (data.error || 'unknown');
+        }
+        await loadState();
+      }
+
+      $btn.onclick = submitGuess;
+
+      // Poll every 1s so this page updates when P1 locks or resets
+      loadState();
+      setInterval(loadState, 1000);
+    </script>
+  </body>
+</html>
